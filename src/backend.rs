@@ -6,7 +6,6 @@ use actix_web::{
     middleware::Logger,
     web,
     App, HttpServer,
-    HttpResponse, Responder,
 };
 use rustls::{
     pki_types::PrivateKeyDer,
@@ -43,20 +42,13 @@ impl<'k, 'c> Backend<'k, 'c> {
             .with_no_client_auth()
             .with_single_cert(certs, PrivateKeyDer::from(key))?;
 
-        let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
+        let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
         let server = HttpServer::new(|| App::new()
             .wrap(Logger::default())
-
-            .default_service(web::to(HttpResponse::NotFound))
-            .service(api)
+            .configure(crate::configure)
         );
 
         log::info!("Listening to port {}...", self.port);
         Ok(server.bind_rustls_0_22(addr, config)?.run().await?)
     }
-}
-
-#[actix_web::get("/api")]
-pub async fn api() -> impl Responder {
-    "Hello from `GlennFolker/figura-backend`!"
 }
