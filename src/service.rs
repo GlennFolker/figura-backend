@@ -1,18 +1,11 @@
+use crate::Ws;
 use std::hash::Hasher;
-use actix::{
-    Actor, StreamHandler,
-};
 use actix_web::{
     web::{
         self,
         ServiceConfig,
     },
     HttpRequest, HttpResponse, Responder,
-};
-use actix_web_actors::ws::{
-    self,
-    WebsocketContext,
-    Message, ProtocolError,
 };
 use fxhash::FxHasher;
 use rand::{
@@ -35,17 +28,6 @@ pub struct AuthToken {
     pub id: String,
 }
 
-pub struct Ws;
-impl Actor for Ws {
-    type Context = WebsocketContext<Self>;
-}
-
-impl StreamHandler<Result<Message, ProtocolError>> for Ws {
-    fn handle(&mut self, item: Result<Message, ProtocolError>, ctx: &mut Self::Context) {
-
-    }
-}
-
 pub fn configure(config: &mut ServiceConfig) {
     config
         .default_service(web::to(HttpResponse::NotFound))
@@ -54,7 +36,7 @@ pub fn configure(config: &mut ServiceConfig) {
         .service(id)
         .service(token)
 
-        .service(web_socket);
+        .service(socket);
 }
 
 #[actix_web::get("/api")]
@@ -65,8 +47,8 @@ pub async fn api() -> impl Responder {
 #[actix_web::get("/api/version")]
 pub async fn version() -> impl Responder {
     "{\
-        \"release\":\"2.7.1\",\
-        \"prerelease\":\"2.7.1\"\
+        \"release\":\"0.1.4\",\
+        \"prerelease\":\"0.1.4\"\
     }"
 }
 
@@ -103,6 +85,6 @@ pub async fn token(web::Query(query): web::Query<AuthToken>) -> impl Responder {
 }
 
 #[actix_web::get("/ws")]
-pub async fn web_socket(req: HttpRequest, stream: web::Payload) -> impl Responder {
-    ws::start(Ws, &req, stream)
+pub async fn socket(req: HttpRequest, stream: web::Payload) -> impl Responder {
+    Ws::start(&req, stream)
 }

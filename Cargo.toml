@@ -19,4 +19,5 @@ rand = { version = "0.8", features = ["small_rng"] }
 rustls = "0.22"
 rustls-pemfile = "2"
 serde = { version = "1", features = ["derive"] }
+thiserror = "1"
 uuid = { version = "1.8.0", features = ["v4"] }
