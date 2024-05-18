@@ -4,7 +4,9 @@ use std::{
 };
 use actix_web::{
     middleware::Logger,
+    web,
     App, HttpServer,
+    HttpResponse, Responder,
 };
 use rustls::{
     pki_types::PrivateKeyDer,
@@ -14,30 +16,27 @@ use rustls_pemfile::{
     certs, pkcs8_private_keys,
 };
 
-pub struct Backend<TlsKey, TlsCert> where
-    TlsKey: BufRead,
-    TlsCert: BufRead,
-{
+pub struct Backend<'k, 'c> {
     port: u16,
-    tls_config: (TlsKey, TlsCert),
+    key: &'k mut dyn BufRead,
+    cert: &'c mut dyn BufRead,
 }
 
-impl<TlsKey, TlsCert> Backend<TlsKey, TlsCert> where
-    TlsKey: BufRead,
-    TlsCert: BufRead,
-{
-    pub fn new(port: u16, key: TlsKey, cert: TlsCert) -> Self {
-        Self {
-            port,
-            tls_config: (key, cert),
-        }
+impl<'k, 'c> Backend<'k, 'c> {
+    pub fn new(port: u16, key: &'k mut dyn BufRead, cert: &'c mut dyn BufRead) -> Self {
+        Self { port, key, cert, }
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
-        let (mut key, mut cert) = self.tls_config;
-        let certs = certs(&mut cert).filter_map(Result::ok).collect();
-        let Some(key) = pkcs8_private_keys(&mut key).filter_map(Result::ok).next() else {
-            anyhow::bail!("Couldn't locate PKCS 8 private keys. Make sure the file path is correct and that it is a valid RSA private key file.");
+        let certs = certs(self.cert).filter_map(Result::ok).collect();
+        let Some(key) = pkcs8_private_keys(self.key).filter_map(|key| match key {
+            Ok(key) => Some(key),
+            Err(e) => {
+                log::warn!("PKCS#8 key error: {e}. Skipping.");
+                None
+            },
+        }).next() else {
+            anyhow::bail!("Couldn't locate PKCS#8 private keys.");
         };
 
         let config = ServerConfig::builder()
@@ -47,8 +46,17 @@ impl<TlsKey, TlsCert> Backend<TlsKey, TlsCert> where
         let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
         let server = HttpServer::new(|| App::new()
             .wrap(Logger::default())
+
+            .default_service(web::to(HttpResponse::NotFound))
+            .service(api)
         );
 
+        log::info!("Listening to port {}...", self.port);
         Ok(server.bind_rustls_0_22(addr, config)?.run().await?)
     }
+}
+
+#[actix_web::get("/api")]
+pub async fn api() -> impl Responder {
+    "Hello from `GlennFolker/figura-backend`!"
 }
