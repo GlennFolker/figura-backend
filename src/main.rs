@@ -16,6 +16,7 @@ struct Args {
     /// The PKCS#8-encoded public key file in PEM format with RSA algorithm.
     #[arg(short, long, default_value_os = "cert.pem")]
     cert: PathBuf,
+    #[arg(short, long, default_value_t = 443)]
     /// Which port the HTTP server listens to.
     port: u16,
 }

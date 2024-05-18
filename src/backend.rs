@@ -3,8 +3,9 @@ use std::{
     net::SocketAddr,
 };
 use actix_web::{
-    middleware::Logger,
-    web,
+    middleware::{
+        Logger, NormalizePath,
+    },
     App, HttpServer,
 };
 use rustls::{
@@ -44,11 +45,12 @@ impl<'k, 'c> Backend<'k, 'c> {
 
         let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
         let server = HttpServer::new(|| App::new()
+            .wrap(NormalizePath::trim())
             .wrap(Logger::default())
             .configure(crate::configure)
         );
 
-        log::info!("Listening to port {}...", self.port);
+        log::info!("Listening to {addr}...");
         Ok(server.bind_rustls_0_22(addr, config)?.run().await?)
     }
 }

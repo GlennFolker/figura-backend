@@ -7,10 +7,16 @@ authors = ["GlFolker"]
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
+actix = "0.13"
 actix-web = { version = "4", features = ["rustls-0_22"] }
+actix-web-actors = "4"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
+fxhash = "0.2"
 log = "0.4"
+rand = { version = "0.8", features = ["small_rng"] }
 rustls = "0.22"
 rustls-pemfile = "2"
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1.8.0", features = ["v4"] }
