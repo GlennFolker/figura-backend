@@ -66,9 +66,9 @@ impl From<WsCode> for CloseCode {
 
 #[derive(Error, Debug)]
 pub enum MsgError {
-    #[error("invalid value of {0}: must be {} to {} inclusive, got {2}", .1.start(), .1.end())]
+    #[error("invalid value of {}: must be {} to {} inclusive, got {}", .0, .1.start(), .1.end(), .2)]
     BadEnum(&'static str, RangeInclusive<usize>, usize),
-    #[error("invalid buffer size for {0}: must be {} {1} bytes, got {3}", if *.2 { "exactly" } else { "at least" })]
+    #[error("invalid buffer size for {}: must be {} {} bytes, got {}", .0, if *.2 { "exactly" } else { "at least" }, .1, .3)]
     BadLength(&'static str, usize, bool, usize),
 }
 
