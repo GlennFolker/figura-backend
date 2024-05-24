@@ -28,13 +28,10 @@ impl AuthService {
 
     #[inline]
     pub fn add(&self, auth: impl Auth) {
-        self.auths
-            .write()
-            .expect("couldn't write-lock")
-            .push(Box::new(auth));
+        self.auths.write().expect("couldn't write-lock").push(Box::new(auth));
     }
 
-    pub async fn get_server_id(&self, username: &str) -> anyhow::Result<Option<Uuid>> {
+    /*pub async fn get_server_id(&self, username: &str) -> anyhow::Result<Option<Uuid>> {
         for auth in &*self.auths.read().expect("couldn't read-lock") {
             match auth.get_server_id(username).await {
                 // `Ok(None)` means the user failed to authenticate because it's not governed under
@@ -50,11 +47,11 @@ impl AuthService {
         }
 
         anyhow::bail!("failed to authenticate a server ID for {username}")
-    }
+    }*/
 }
 
 pub type AuthFuture<Output> = Pin<Box<dyn Future<Output = Output> + 'static>>;
 
 pub trait Auth: Send + Sync + 'static {
-    fn get_server_id(&self, username: &str) -> AuthFuture<anyhow::Result<Option<Uuid>>>;
+    //fn get_server_id(&self, username: &str, server_id: Uuid) -> AuthFuture<anyhow::Result<Option<Uuid>>>;
 }

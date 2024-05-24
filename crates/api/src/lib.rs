@@ -5,6 +5,7 @@ pub use anyhow;
 pub use awc;
 pub use log;
 pub use once_cell;
+pub use rand;
 pub use rustls;
 pub use rustls_pemfile;
 pub use serde;
@@ -40,7 +41,6 @@ use rustls_pemfile::{
     certs,
     pkcs8_private_keys,
 };
-use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::service::{
     auth::AuthService,
@@ -72,9 +72,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
     }
 
     pub async fn run(mut self) -> anyhow::Result<()> {
-        let certs = certs(self.cert.as_reader())
-            .filter_map(Result::ok)
-            .collect();
+        let certs = certs(self.cert.as_reader()).filter_map(Result::ok).collect();
 
         let Some(key) = pkcs8_private_keys(self.key.as_reader())
             .filter_map(|key| match key {
@@ -89,10 +87,6 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
             anyhow::bail!("Couldn't locate PKCS#8 private keys.");
         };
 
-        for config in self.configs {
-            config.config();
-        }
-
         let server_config = ServerConfig::builder()
             .with_no_client_auth()
             .with_single_cert(certs, PrivateKeyDer::from(key))?;
@@ -100,7 +94,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
         let client_config = ClientConfig::builder()
             .with_root_certificates({
                 let mut store = RootCertStore::empty();
-                store.roots.extend(TLS_SERVER_ROOTS.iter().cloned());
+                store.add_parsable_certificates(rustls_native_certs::load_native_certs()?);
                 store
             })
             .with_no_client_auth();
@@ -115,6 +109,10 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
                 .app_data(web::Data::from(HttpService::get().clone()))
                 .configure(endpoint::config)
         });
+
+        for config in self.configs {
+            config.config();
+        }
 
         log::info!("Listening to `{addr}`...");
         Ok(server.bind_rustls_0_23(addr, server_config)?.run().await?)

@@ -1,7 +1,13 @@
+max_width = 125
+overflow_delimited_expr = true
+force_multiline_blocks = false
+newline_style = "Unix"
+trailing_semicolon = false
+
 imports_indent = "Block"
 imports_layout = "Vertical"
 imports_granularity = "Crate"
 reorder_imports = true
 group_imports = "StdExternalCrate"
-
 reorder_modules = true
+

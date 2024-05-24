@@ -16,9 +16,7 @@ pub struct ServerId {
 }
 
 #[get("/api/auth/id")]
-pub async fn get_server_id(
-    web::Query(Username { username }): web::Query<Username>,
-) -> impl Responder {
+pub async fn get_server_id(web::Query(Username { username }): web::Query<Username>) -> impl Responder {
     "todo!"
 }
 
