@@ -1,13 +1,14 @@
+use std::{
+    convert::Infallible,
+    str::FromStr,
+};
+
 use actix_web::{
     error::ParseError,
     http::header,
     HttpMessage,
 };
 use thiserror::Error;
-use std::{
-    convert::Infallible,
-    str::FromStr,
-};
 
 pub struct UserAgent {
     pub name: String,

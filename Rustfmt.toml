@@ -1,0 +1,7 @@
+imports_indent = "Block"
+imports_layout = "Vertical"
+imports_granularity = "Crate"
+reorder_imports = true
+group_imports = "StdExternalCrate"
+
+reorder_modules = true
