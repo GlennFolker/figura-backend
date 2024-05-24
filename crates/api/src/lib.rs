@@ -32,12 +32,15 @@ use actix_web::{
 };
 use rustls::{
     pki_types::PrivateKeyDer,
+    ClientConfig,
+    RootCertStore,
     ServerConfig,
 };
 use rustls_pemfile::{
     certs,
     pkcs8_private_keys,
 };
+use webpki_roots::TLS_SERVER_ROOTS;
 
 use crate::service::{
     auth::AuthService,
@@ -52,6 +55,7 @@ pub struct Backend<Key: AsReader, Cert: AsReader> {
 }
 
 impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
+    #[inline]
     pub fn new(port: u16, key: Key, cert: Cert) -> Self {
         Self {
             port,
@@ -61,6 +65,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
         }
     }
 
+    #[inline]
     pub fn config(mut self, config: impl BackendConfig) -> Self {
         self.configs.push(Box::new(config));
         self
@@ -70,6 +75,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
         let certs = certs(self.cert.as_reader())
             .filter_map(Result::ok)
             .collect();
+
         let Some(key) = pkcs8_private_keys(self.key.as_reader())
             .filter_map(|key| match key {
                 Ok(key) => Some(key),
@@ -87,10 +93,19 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
             config.config();
         }
 
-        let config = ServerConfig::builder()
+        let server_config = ServerConfig::builder()
             .with_no_client_auth()
             .with_single_cert(certs, PrivateKeyDer::from(key))?;
 
+        let client_config = ClientConfig::builder()
+            .with_root_certificates({
+                let mut store = RootCertStore::empty();
+                store.roots.extend(TLS_SERVER_ROOTS.iter().cloned());
+                store
+            })
+            .with_no_client_auth();
+
+        HttpService::get().config(client_config);
         let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
         let server = HttpServer::new(|| {
             App::new()
@@ -102,7 +117,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
         });
 
         log::info!("Listening to `{addr}`...");
-        Ok(server.bind_rustls_0_22(addr, config)?.run().await?)
+        Ok(server.bind_rustls_0_23(addr, server_config)?.run().await?)
     }
 }
 
