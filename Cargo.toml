@@ -1,24 +1,49 @@
 [package]
 name = "figura-backend"
-version = "0.1.0"
 description = "Unofficial custom Figura server backend implementation."
-edition = "2021"
-authors = ["GlFolker"]
-license = "Apache-2.0 OR MIT"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+version = { workspace = true }
 
-[dependencies]
+[workspace.package]
+authors = ["GlFolker"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/GlennFolker/figura-backend"
+rust-version = "1.78"
+version = "0.1.0"
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/api",
+    "crates/auth-mojang",
+]
+
+[workspace.dependencies]
+figura-api = { path = "crates/api" }
+figura-auth-mojang = { path = "crates/auth-mojang" }
+
 actix = "0.13"
 actix-web = { version = "4", features = ["rustls-0_22"] }
 actix-web-actors = "4"
+awc = "3.4"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
-fxhash = "0.2"
 log = "0.4"
-rand = { version = "0.8", features = ["small_rng"] }
 rustls = "0.22"
 rustls-pemfile = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
-uuid = { version = "1.8.0", features = ["v4"] }
+uuid = { version = "1.8.0" }
+
+[dependencies]
+figura-api = { workspace = true }
+
+clap = { workspace = true }
+env_logger = { workspace = true }

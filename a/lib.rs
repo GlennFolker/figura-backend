@@ -1,3 +1,7 @@
+pub mod api;
+pub mod data;
+pub mod socket;
+
 use std::{
     io::BufRead,
     net::SocketAddr,
@@ -47,7 +51,7 @@ impl<'k, 'c> Backend<'k, 'c> {
         let server = HttpServer::new(|| App::new()
             .wrap(NormalizePath::trim())
             .wrap(Logger::default())
-            .configure(crate::configure)
+            .configure(api::configure_api)
         );
 
         log::info!("Listening to {addr}...");

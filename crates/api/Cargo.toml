@@ -1,0 +1,23 @@
+[package]
+name = "figura-api"
+description = "Public API and HTTPS/WSS endpoints for `figura-backend`."
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+actix = { workspace = true }
+actix-web = { workspace = true }
+actix-web-actors = { workspace = true }
+awc = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
