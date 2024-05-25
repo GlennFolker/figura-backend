@@ -9,7 +9,9 @@ rust-version = { workspace = true }
 version = { workspace = true }
 
 [workspace.package]
-authors = ["GlFolker"]
+authors = [
+    "GlFolker",
+]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/GlennFolker/figura-backend"
@@ -20,12 +22,12 @@ version = "0.1.0"
 resolver = "2"
 members = [
     "crates/api",
-    "crates/auth-mojang",
+    "crates/auth-yggdrasil",
 ]
 
 [workspace.dependencies]
 figura-api = { path = "crates/api" }
-figura-auth-mojang = { path = "crates/auth-mojang" }
+figura-auth-yggdrasil = { path = "crates/auth-yggdrasil" }
 
 actix = "0.13"
 actix-web = { version = "4", features = ["rustls-0_23"] }
@@ -43,15 +45,16 @@ rustls-pemfile = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
-uuid = { version = "1.8.0" }
+uuid = { version = "1", features = ["serde"] }
 
 [dependencies]
 figura-api = { workspace = true }
-figura-auth-mojang = { workspace = true, optional = true }
+figura-auth-yggdrasil = { workspace = true, optional = true }
 
 clap = { workspace = true }
 env_logger = { workspace = true }
 
 [features]
-default = ["mojang"]
-mojang = ["dep:figura-auth-mojang"]
+default = ["ely"]
+mojang = ["dep:figura-auth-yggdrasil"]
+ely = ["dep:figura-auth-yggdrasil"]

@@ -3,6 +3,7 @@ overflow_delimited_expr = true
 force_multiline_blocks = false
 newline_style = "Unix"
 trailing_semicolon = false
+trailing_comma = "Vertical"
 
 imports_indent = "Block"
 imports_layout = "Vertical"

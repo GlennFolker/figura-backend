@@ -24,10 +24,14 @@ struct Args {
     #[arg(short, long, default_value_t = 443)]
     /// Which port the HTTP server listens to.
     port: u16,
-    /// Mojang's official session server. Protocol is always HTTPS.
+    /// Mojang's official Minecraft session server.
     #[cfg(feature = "mojang")]
-    #[arg(short, long, default_value = "sessionserver.mojang.com")]
-    session_server: String,
+    #[arg(short, long, default_value = "https://sessionserver.mojang.com/session/minecraft/")]
+    mojang_session_server: String,
+    /// Ely's unofficial Minecraft session server.
+    #[cfg(feature = "ely")]
+    #[arg(short, long, default_value = "https://authserver.ely.by/session")]
+    ely_session_server: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -48,11 +52,20 @@ fn main() -> anyhow::Result<()> {
             BufReader::new(File::open(args.cert)?),
         );
 
+        // The authentication stack prioritizes Mojang's Yggdrasil server first.
         #[cfg(feature = "mojang")]
         {
-            use figura_auth_mojang::MojangAuthConfig;
-            backend = backend.config(MojangAuthConfig {
-                session_server: args.session_server,
+            use figura_auth_yggdrasil::YggdrasilConfig;
+            backend = backend.config(YggdrasilConfig {
+                session_server: args.mojang_session_server,
+            });
+        }
+
+        #[cfg(feature = "ely")]
+        {
+            use figura_auth_yggdrasil::YggdrasilConfig;
+            backend = backend.config(YggdrasilConfig {
+                session_server: args.ely_session_server,
             });
         }
 

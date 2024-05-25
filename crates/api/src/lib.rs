@@ -41,11 +41,20 @@ use rustls_pemfile::{
     certs,
     pkcs8_private_keys,
 };
+use uuid::{
+    fmt::Simple,
+    Uuid,
+};
 
 use crate::service::{
     auth::AuthService,
     http::HttpService,
 };
+
+#[inline]
+pub fn encode_uuid(uuid: Uuid) -> String {
+    uuid.as_simple().encode_lower(&mut [0; Simple::LENGTH]).to_string()
+}
 
 pub struct Backend<Key: AsReader, Cert: AsReader> {
     port: u16,
@@ -99,14 +108,16 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
             })
             .with_no_client_auth();
 
-        HttpService::get().config(client_config);
+        let auth = AuthService::new()?.global()?;
+        let http = HttpService::new(client_config)?.global()?;
+
         let addr = SocketAddr::from(([0, 0, 0, 0], self.port));
-        let server = HttpServer::new(|| {
+        let server = HttpServer::new(move || {
             App::new()
                 .wrap(NormalizePath::trim())
                 .wrap(Logger::default())
-                .app_data(web::Data::from(AuthService::get().clone()))
-                .app_data(web::Data::from(HttpService::get().clone()))
+                .app_data(web::Data::from(auth.clone()))
+                .app_data(web::Data::from(http.clone()))
                 .configure(endpoint::config)
         });
 

@@ -1,5 +1,5 @@
 [package]
-name = "figura-auth-mojang"
+name = "figura-auth-yggdrasil"
 description = "Mojang's symmetrical protocol encryption API for `figura-backend`."
 edition = { workspace = true }
 authors = { workspace = true }
