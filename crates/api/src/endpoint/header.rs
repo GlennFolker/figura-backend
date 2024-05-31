@@ -1,7 +1,4 @@
-use std::{
-    convert::Infallible,
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use actix_web::{
     error::ParseError,
@@ -9,6 +6,9 @@ use actix_web::{
     HttpMessage,
 };
 use thiserror::Error;
+use uuid::Uuid;
+
+use crate::encode_uuid;
 
 pub struct UserAgent {
     pub name: String,
@@ -55,16 +55,16 @@ impl FromStr for UserAgent {
     }
 }
 
-pub struct Token(pub String);
-impl header::TryIntoHeaderValue for Token {
+pub struct AccessToken(pub Uuid);
+impl header::TryIntoHeaderValue for AccessToken {
     type Error = header::InvalidHeaderValue;
 
     fn try_into_value(self) -> Result<header::HeaderValue, Self::Error> {
-        header::HeaderValue::from_str(&self.0)
+        header::HeaderValue::from_str(&encode_uuid(self.0))
     }
 }
 
-impl header::Header for Token {
+impl header::Header for AccessToken {
     fn name() -> header::HeaderName {
         header::HeaderName::from_static("token")
     }
@@ -74,10 +74,10 @@ impl header::Header for Token {
     }
 }
 
-impl FromStr for Token {
-    type Err = Infallible;
+impl FromStr for AccessToken {
+    type Err = uuid::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
+        Ok(Self(Uuid::try_parse(s)?))
     }
 }

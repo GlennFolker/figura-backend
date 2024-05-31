@@ -4,13 +4,6 @@ pub use actix_web_actors;
 pub use anyhow;
 pub use awc;
 pub use log;
-pub use once_cell;
-pub use rand;
-pub use rustls;
-pub use rustls_pemfile;
-pub use serde;
-pub use serde_json;
-pub use thiserror;
 pub use uuid;
 
 pub mod endpoint;
@@ -20,6 +13,7 @@ use std::{
     self,
     io::BufRead,
     net::SocketAddr,
+    time::Duration,
 };
 
 use actix_web::{
@@ -30,6 +24,10 @@ use actix_web::{
     web,
     App,
     HttpServer,
+};
+use rand::{
+    thread_rng,
+    RngCore,
 };
 use rustls::{
     pki_types::PrivateKeyDer,
@@ -42,7 +40,8 @@ use rustls_pemfile::{
     pkcs8_private_keys,
 };
 use uuid::{
-    fmt::Simple,
+    fmt::Hyphenated,
+    Builder,
     Uuid,
 };
 
@@ -52,34 +51,31 @@ use crate::service::{
 };
 
 #[inline]
+pub fn random_uuid() -> Uuid {
+    let mut rng = thread_rng();
+    let mut bytes = [0; 16];
+    rng.fill_bytes(&mut bytes);
+
+    Builder::from_random_bytes(bytes).into_uuid()
+}
+
+#[inline]
 pub fn encode_uuid(uuid: Uuid) -> String {
-    uuid.as_simple().encode_lower(&mut [0; Simple::LENGTH]).to_string()
+    uuid.as_hyphenated().encode_lower(&mut [0; Hyphenated::LENGTH]).to_string()
 }
 
 pub struct Backend<Key: AsReader, Cert: AsReader> {
-    port: u16,
-    key: Key,
-    cert: Cert,
-    configs: Vec<Box<dyn BackendConfig>>,
+    pub port: u16,
+    pub key: Key,
+    pub cert: Cert,
+
+    pub server_id_timeout: Duration,
+    pub access_timeout: Duration,
+
+    pub configs: Vec<Box<dyn BackendConfig>>,
 }
 
 impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
-    #[inline]
-    pub fn new(port: u16, key: Key, cert: Cert) -> Self {
-        Self {
-            port,
-            key,
-            cert,
-            configs: Vec::new(),
-        }
-    }
-
-    #[inline]
-    pub fn config(mut self, config: impl BackendConfig) -> Self {
-        self.configs.push(Box::new(config));
-        self
-    }
-
     pub async fn run(mut self) -> anyhow::Result<()> {
         let certs = certs(self.cert.as_reader()).filter_map(Result::ok).collect();
 
@@ -108,7 +104,7 @@ impl<Key: AsReader, Cert: AsReader> Backend<Key, Cert> {
             })
             .with_no_client_auth();
 
-        let auth = AuthService::new()?.global()?;
+        let auth = AuthService::new(self.server_id_timeout, self.access_timeout)?.global()?;
         let http = HttpService::new(client_config)?.global()?;
 
         let addr = SocketAddr::from(([0, 0, 0, 0], self.port));

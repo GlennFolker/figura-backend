@@ -10,3 +10,5 @@ version = { workspace = true }
 
 [dependencies]
 figura-api = { workspace = true }
+
+serde_json = { workspace = true }

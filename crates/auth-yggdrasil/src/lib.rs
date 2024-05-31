@@ -5,6 +5,7 @@ use std::{
 
 use figura_api::{
     anyhow,
+    awc::http::StatusCode,
     encode_uuid,
     log,
     service::{
@@ -15,27 +16,24 @@ use figura_api::{
         },
         http::HttpService,
     },
-    uuid::{
-        fmt::Simple,
-        Uuid,
-    },
+    uuid::Uuid,
     BackendConfig,
 };
-use figura_api::awc::http::StatusCode;
-use figura_api::serde_json::Value;
 
 pub struct YggdrasilConfig {
     pub session_server: String,
+    pub timeout: Duration,
 }
 
 impl BackendConfig for YggdrasilConfig {
     #[inline]
     fn config(self: Box<Self>) {
-        let Self { session_server } = *self;
-        log::info!("Authenticating on `{}`.", session_server);
+        let Self { session_server, timeout } = *self;
+        log::info!("Authenticating on `{session_server}`.");
 
         AuthService::get().unwrap().add(YggdrasilAuth {
             session_server,
+            timeout,
             http: HttpService::get().unwrap().clone(),
         });
     }
@@ -43,13 +41,15 @@ impl BackendConfig for YggdrasilConfig {
 
 pub struct YggdrasilAuth {
     session_server: String,
+    timeout: Duration,
     http: Arc<HttpService>,
 }
 
 impl Auth for YggdrasilAuth {
-    fn authenticate(&self, username: &str, server_id: Uuid) -> AuthFuture<anyhow::Result<bool>> {
+    fn authenticate(&self, username: &str, server_id: Uuid) -> AuthFuture<anyhow::Result<Option<Uuid>>> {
         let username = username.to_string();
         let session_server = self.session_server.clone();
+        let timeout = self.timeout;
         let http = self.http.clone();
 
         Box::pin(async move {
@@ -61,14 +61,23 @@ impl Auth for YggdrasilAuth {
                     username,
                     encode_uuid(server_id)
                 ))
-                .timeout(Duration::from_secs(30))
+                .timeout(timeout)
                 .send()
-                .await?;
-            
+                .await
+                .map_err(|e| anyhow::anyhow!("couldn't send HTTP GET request: {e}"))?;
+
             if response.status() == StatusCode::OK {
-                Ok(true)
+                let response = response.json::<serde_json::Value>().await?;
+                Ok(Some(
+                    response
+                        .get("id")
+                        .ok_or_else(|| anyhow::anyhow!("`id` field not found in response"))?
+                        .as_str()
+                        .ok_or_else(|| anyhow::anyhow!("`id` field is not a string"))
+                        .and_then(|value| Uuid::try_parse(value).map_err(anyhow::Error::from))?,
+                ))
             } else {
-                Ok(false)
+                Ok(None)
             }
         })
     }

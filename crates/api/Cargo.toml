@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 awc = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 rand = { workspace = true }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
