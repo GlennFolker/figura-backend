@@ -1,21 +1,19 @@
-use std::{
-    sync::Arc,
-    time::Duration,
-};
+use std::time::Duration;
 
 use figura_api::{
+    actix_web::HttpRequest,
     anyhow,
     awc::http::StatusCode,
     encode_uuid,
-    log,
     service::{
         auth::{
             Auth,
-            AuthFuture,
             AuthService,
         },
         http::HttpService,
+        ServiceLocator,
     },
+    tokio::runtime::Handle,
     uuid::Uuid,
     BackendConfig,
 };
@@ -27,14 +25,10 @@ pub struct YggdrasilConfig {
 
 impl BackendConfig for YggdrasilConfig {
     #[inline]
-    fn config(self: Box<Self>) {
-        let Self { session_server, timeout } = *self;
-        log::info!("Authenticating on `{session_server}`.");
-
-        AuthService::get().unwrap().add(YggdrasilAuth {
-            session_server,
-            timeout,
-            http: HttpService::get().unwrap().clone(),
+    fn config(&self, locator: &mut dyn ServiceLocator) {
+        locator.locate::<AuthService>().add(YggdrasilAuth {
+            session_server: self.session_server.clone(),
+            timeout: self.timeout,
         });
     }
 }
@@ -42,19 +36,18 @@ impl BackendConfig for YggdrasilConfig {
 pub struct YggdrasilAuth {
     session_server: String,
     timeout: Duration,
-    http: Arc<HttpService>,
 }
 
 impl Auth for YggdrasilAuth {
-    fn authenticate(&self, username: &str, server_id: Uuid) -> AuthFuture<anyhow::Result<Option<Uuid>>> {
-        let username = username.to_string();
-        let session_server = self.session_server.clone();
-        let timeout = self.timeout;
-        let http = self.http.clone();
+    fn authenticate(&self, req: &HttpRequest, username: &str, server_id: Uuid) -> anyhow::Result<Option<Uuid>> {
+        let &Self {
+            ref session_server,
+            timeout,
+        } = self;
 
-        Box::pin(async move {
+        let http = req.app_data::<HttpService>().expect("`HttpService` not found").client();
+        Handle::current().block_on(async {
             let mut response = http
-                .client()
                 .get(format!(
                     "{}/hasJoined?username={}&serverId={}",
                     session_server,

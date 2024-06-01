@@ -1,9 +1,4 @@
-use actix_web::{
-    get,
-    http::StatusCode,
-    web,
-    Responder,
-};
+use actix_web::{get, http::StatusCode, web, Responder, HttpRequest};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -28,11 +23,12 @@ pub struct ServerId {
 
 #[get("/api")]
 pub async fn refresh_access_token(
+    req: HttpRequest,
     _: web::Header<UserAgent>,
     web::Header(token): web::Header<AccessToken>,
     auth: web::Data<AuthService>,
 ) -> impl Responder {
-    if auth.refresh_access_token(token.0).await {
+    if auth.refresh_access_token(&req, token.0).await {
         ("hello from `figura-backend`!", StatusCode::OK)
     } else {
         ("invalid or expired access token", StatusCode::UNAUTHORIZED)
@@ -49,10 +45,11 @@ pub async fn assign_server_id(
 
 #[get("/api/auth/verify")]
 pub async fn obtain_access_token(
+    req: HttpRequest,
     web::Query(ServerId { id }): web::Query<ServerId>,
     auth: web::Data<AuthService>,
 ) -> impl Responder {
-    match auth.obtain_access_token(id).await {
+    match auth.obtain_access_token(&req, id).await {
         Some(token) => (encode_uuid(token), StatusCode::OK),
         None => ("invalid server ID".to_string(), StatusCode::UNAUTHORIZED),
     }

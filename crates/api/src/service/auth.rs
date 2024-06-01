@@ -1,39 +1,40 @@
 use std::{
     collections::HashMap,
-    future::Future,
-    pin::Pin,
     sync::Arc,
     time::Duration,
 };
 
-use actix_web::rt::{
-    spawn,
-    time::{
-        sleep,
-        Instant,
+use actix_web::{
+    rt::{
+        spawn,
+        time::{
+            sleep,
+            Instant,
+        },
     },
+    HttpRequest,
 };
-use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use uuid::Uuid;
 
 use crate::{
     encode_uuid,
     random_uuid,
+    service::Service,
 };
 
-static INSTANCE: OnceCell<Arc<AuthService>> = OnceCell::new();
-
 pub struct AuthService {
-    auths: RwLock<Vec<Arc<dyn Auth>>>,
+    auths: Vec<Arc<dyn Auth>>,
     server_ids: Arc<RwLock<HashMap<Uuid, (Instant, String)>>>,
     access_tokens: Arc<RwLock<HashMap<Uuid, (Instant, Uuid, Uuid, String, Arc<dyn Auth>)>>>,
 }
 
+impl Service for AuthService {}
+
 impl AuthService {
     #[inline]
-    pub fn new(server_id_timeout: Duration, access_timeout: Duration) -> anyhow::Result<Self> {
-        let auths = RwLock::new(Vec::new());
+    pub fn new(server_id_timeout: Duration, access_timeout: Duration) -> Self {
+        let auths = Vec::new();
         let server_ids = Arc::new(RwLock::new(HashMap::new()));
         let access_tokens = Arc::new(RwLock::new(HashMap::new()));
 
@@ -70,29 +71,16 @@ impl AuthService {
             });
         }
 
-        Ok(Self {
+        Self {
             auths,
             server_ids,
             access_tokens,
-        })
+        }
     }
 
     #[inline]
-    pub(crate) fn global(self) -> anyhow::Result<Arc<Self>> {
-        INSTANCE
-            .try_insert(Arc::new(self))
-            .cloned()
-            .map_err(|_| anyhow::anyhow!("`AuthService` already initialized"))
-    }
-
-    #[inline]
-    pub fn get() -> anyhow::Result<&'static Arc<Self>> {
-        INSTANCE.get().ok_or_else(|| anyhow::anyhow!("`AuthService` not initialized"))
-    }
-
-    #[inline]
-    pub fn add(&self, auth: impl Auth) {
-        self.auths.write().push(Arc::new(auth));
+    pub fn add(&mut self, auth: impl Auth) {
+        self.auths.push(Arc::new(auth));
     }
 
     pub fn assign_server_id(&self, username: &str) -> Uuid {
@@ -103,12 +91,12 @@ impl AuthService {
         server_id
     }
 
-    pub async fn obtain_access_token(&self, server_id: Uuid) -> Option<Uuid> {
+    pub async fn obtain_access_token(&self, req: &HttpRequest, server_id: Uuid) -> Option<Uuid> {
         let mut server_ids = self.server_ids.write();
         let (.., name) = server_ids.remove(&server_id)?;
 
-        for auth in &*self.auths.read() {
-            match auth.authenticate(&name, server_id).await {
+        for auth in &self.auths {
+            match auth.authenticate(req, &name, server_id) {
                 Ok(Some(user_id)) => {
                     let token = random_uuid();
                     self.access_tokens
@@ -128,16 +116,20 @@ impl AuthService {
         self.access_tokens.read().contains_key(&access_token)
     }
 
-    pub async fn refresh_access_token(&self, access_token: Uuid) -> bool {
+    pub async fn refresh_access_token(&self, req: &HttpRequest, access_token: Uuid) -> bool {
         let mut access_tokens = self.access_tokens.write();
         let Some((time, server_id, _user_id, name, auth)) = access_tokens.get_mut(&access_token) else {
             return false
         };
 
-        if auth.authenticate(name, *server_id).await.unwrap_or_else(|e| {
-            log::error!("Couldn't check authenticity of {name}: {e}");
-            None
-        }).is_some() {
+        if auth
+            .authenticate(req, name, *server_id)
+            .unwrap_or_else(|e| {
+                log::error!("Couldn't check authenticity of {name}: {e}");
+                None
+            })
+            .is_some()
+        {
             *time = Instant::now();
             true
         } else {
@@ -146,8 +138,6 @@ impl AuthService {
     }
 }
 
-pub type AuthFuture<Output> = Pin<Box<dyn Future<Output = Output> + 'static>>;
-
-pub trait Auth: 'static + Send + Sync {
-    fn authenticate(&self, username: &str, server_id: Uuid) -> AuthFuture<anyhow::Result<Option<Uuid>>>;
+pub trait Auth: 'static {
+    fn authenticate(&self, req: &HttpRequest, username: &str, server_id: Uuid) -> anyhow::Result<Option<Uuid>>;
 }
