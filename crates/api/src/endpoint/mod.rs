@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod header;
+pub mod socket;
 
 use actix_web::{
     web,
@@ -11,5 +12,6 @@ pub fn config(config: &mut web::ServiceConfig) {
         .default_service(web::to(HttpResponse::NotFound))
         .service(auth::refresh_access_token)
         .service(auth::assign_server_id)
-        .service(auth::obtain_access_token);
+        .service(auth::obtain_access_token)
+        .service(socket::web_socket);
 }

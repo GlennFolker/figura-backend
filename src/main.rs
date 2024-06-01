@@ -93,6 +93,8 @@ fn main() -> anyhow::Result<()> {
                     timeout: args.ely_session_timeout,
                 }),
             ],
-        }.run().await
+        }
+        .run()
+        .await
     })
 }

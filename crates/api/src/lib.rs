@@ -4,11 +4,11 @@ pub use actix_web_actors;
 pub use anyhow;
 pub use awc;
 pub use log;
-pub use tokio;
 pub use uuid;
 
 pub mod endpoint;
 pub mod service;
+pub mod socket;
 
 use std::{
     self,
@@ -30,6 +30,11 @@ use actix_web::{
     web,
     App,
     HttpServer,
+};
+use fxhash::FxBuildHasher;
+use hashbrown::{
+    HashMap,
+    HashSet,
 };
 use rand::{
     thread_rng,
@@ -56,6 +61,9 @@ use crate::service::{
     http::HttpService,
     ServiceLocator,
 };
+
+pub type FxHashMap<K, V> = HashMap<K, V, FxBuildHasher>;
+pub type FxHashSet<T> = HashSet<T, FxBuildHasher>;
 
 #[inline]
 pub fn random_uuid() -> Uuid {

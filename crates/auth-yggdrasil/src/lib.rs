@@ -1,7 +1,12 @@
 use std::time::Duration;
 
 use figura_api::{
-    actix_web::HttpRequest,
+    actix::spawn,
+    actix_web::{
+        rt::task::JoinHandle,
+        web,
+        HttpRequest,
+    },
     anyhow,
     awc::http::StatusCode,
     encode_uuid,
@@ -13,7 +18,6 @@ use figura_api::{
         http::HttpService,
         ServiceLocator,
     },
-    tokio::runtime::Handle,
     uuid::Uuid,
     BackendConfig,
 };
@@ -39,14 +43,22 @@ pub struct YggdrasilAuth {
 }
 
 impl Auth for YggdrasilAuth {
-    fn authenticate(&self, req: &HttpRequest, username: &str, server_id: Uuid) -> anyhow::Result<Option<Uuid>> {
+    fn authenticate(&self, req: &HttpRequest, username: &str, server_id: Uuid) -> JoinHandle<anyhow::Result<Option<Uuid>>> {
         let &Self {
             ref session_server,
             timeout,
         } = self;
 
-        let http = req.app_data::<HttpService>().expect("`HttpService` not found").client();
-        Handle::current().block_on(async {
+        let http = req
+            .app_data::<web::Data<HttpService>>()
+            .expect("`HttpService` not found")
+            .client()
+            .clone();
+
+        let session_server = session_server.clone();
+        let username = username.to_string();
+
+        spawn(async move {
             let mut response = http
                 .get(format!(
                     "{}/hasJoined?username={}&serverId={}",

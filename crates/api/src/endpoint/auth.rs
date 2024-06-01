@@ -1,4 +1,10 @@
-use actix_web::{get, http::StatusCode, web, Responder, HttpRequest};
+use actix_web::{
+    get,
+    http::StatusCode,
+    web,
+    HttpRequest,
+    Responder,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -28,10 +34,10 @@ pub async fn refresh_access_token(
     web::Header(token): web::Header<AccessToken>,
     auth: web::Data<AuthService>,
 ) -> impl Responder {
-    if auth.refresh_access_token(&req, token.0).await {
-        ("hello from `figura-backend`!", StatusCode::OK)
-    } else {
-        ("invalid or expired access token", StatusCode::UNAUTHORIZED)
+    match auth.refresh_access_token(&req, token.0).await {
+        Ok(true) => ("hello from `figura-backend`!".to_string(), StatusCode::OK),
+        Ok(false) => ("invalid or expired access token".to_string(), StatusCode::UNAUTHORIZED),
+        Err(e) => (e.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -50,7 +56,8 @@ pub async fn obtain_access_token(
     auth: web::Data<AuthService>,
 ) -> impl Responder {
     match auth.obtain_access_token(&req, id).await {
-        Some(token) => (encode_uuid(token), StatusCode::OK),
-        None => ("invalid server ID".to_string(), StatusCode::UNAUTHORIZED),
+        Ok(Some(token)) => (encode_uuid(token), StatusCode::OK),
+        Ok(None) => ("invalid server ID".to_string(), StatusCode::UNAUTHORIZED),
+        Err(e) => (e.to_string(), StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
